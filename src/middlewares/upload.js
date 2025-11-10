@@ -24,7 +24,7 @@ const fileFilter = (req, file, cb) => {
   if (mimeType && extName) {
     return cb(null, true);
   }
-  cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif)'));
+  cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif, webp)'));
 };
 
 const upload = multer({

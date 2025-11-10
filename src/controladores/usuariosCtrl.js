@@ -1,4 +1,5 @@
 import { conmysql } from "../db.js"; // Conexión a la base de datos
+import bcrypt from "bcryptjs";
 
 // === PRUEBA DE CONEXIÓN ===
 export const prueba = (req, res) => {
@@ -48,12 +49,30 @@ export const postUsuario = async (req, res) => {
   try {
     const { usr_usuario, usr_clave, usr_nombre, usr_telefono, usr_correo, usr_activo } = req.body;
 
-    const [result] = await conmysql.query(
+    if (!usr_usuario || !usr_clave) {
+      return res.status(400).json({ message: "Usuario o clave faltante" });
+    }
+
+    // 🔹 Hashear automáticamente la contraseña
+    const hashPassword = await bcrypt.hash(usr_clave, 10);
+
+    // Insertar en la tabla usuarios (para la app)
+    const [resultUsuarios] = await conmysql.query(
       "INSERT INTO usuarios (usr_usuario, usr_clave, usr_nombre, usr_telefono, usr_correo, usr_activo) VALUES (?,?,?,?,?,?)",
-      [usr_usuario, usr_clave, usr_nombre, usr_telefono, usr_correo, usr_activo]
+      [usr_usuario, hashPassword, usr_nombre, usr_telefono, usr_correo, usr_activo]
     );
 
-    res.json({ usr_id: result.insertId });
+    // Insertar en la tabla users (registro extra)
+    const [resultUsers] = await conmysql.query(
+      "INSERT INTO users (username, password) VALUES (?,?)",
+      [usr_usuario, hashPassword]
+    );
+
+    res.json({ 
+      usr_id: resultUsuarios.insertId,
+      message: "Usuario creado en usuarios y users automáticamente"
+    });
+
   } catch (error) {
     console.error("Error en postUsuario:", error);
     return res.status(500).json({ message: "Error en el servidor" });
@@ -66,9 +85,21 @@ export const putUsuario = async (req, res) => {
     const { id } = req.params;
     const { usr_usuario, usr_clave, usr_nombre, usr_telefono, usr_correo, usr_activo } = req.body;
 
+    // Hashear la nueva contraseña si viene
+    const hashPassword = usr_clave ? await bcrypt.hash(usr_clave, 10) : undefined;
+
     const [result] = await conmysql.query(
-      "UPDATE usuarios SET usr_usuario=?, usr_clave=?, usr_nombre=?, usr_telefono=?, usr_correo=?, usr_activo=? WHERE usr_id=?",
-      [usr_usuario, usr_clave, usr_nombre, usr_telefono, usr_correo, usr_activo, id]
+      `UPDATE usuarios SET 
+        usr_usuario=?,
+        ${hashPassword ? "usr_clave=?," : ""}
+        usr_nombre=?,
+        usr_telefono=?,
+        usr_correo=?,
+        usr_activo=?
+      WHERE usr_id=?`,
+      hashPassword
+        ? [usr_usuario, hashPassword, usr_nombre, usr_telefono, usr_correo, usr_activo, id]
+        : [usr_usuario, usr_nombre, usr_telefono, usr_correo, usr_activo, id]
     );
 
     if (result.affectedRows <= 0)
@@ -97,3 +128,4 @@ export const deleteUsuario = async (req, res) => {
     return res.status(500).json({ message: "Error en el servidor" });
   }
 };
+

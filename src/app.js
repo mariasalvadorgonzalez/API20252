@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';  //  AGREGAR ESTA LÍNEA
 import clientesRoutes from './routes/clientes.routes.js';
 import productosRoutes from './routes/productos.routes.js'; 
 import usuarioRoutes from './routes/usuarios.routes.js'; 
+import pedidosRoutes from './routes/pedidos.routes.js'; // 👈 AGREGAR ESTA LÍNEA
 import authRoutes from "./routes/auth.routes.js";
 
 const app = express();
@@ -43,6 +44,8 @@ app.use("/api", authRoutes);
 app.use("/api", clientesRoutes);
 app.use("/api", productosRoutes); 
 app.use("/api", usuarioRoutes);
+app.use("/api", pedidosRoutes); // 👈 AGREGAR ESTA LÍNEA
+
 
 // Manejo de endpoints no encontrados
 app.use((req, resp, next) => {
