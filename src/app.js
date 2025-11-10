@@ -17,6 +17,7 @@ const __dirname = path.dirname(__filename);
 const allowedOrigins = [
   'http://localhost:8100',
   'http://localhost',
+  'https://localhost',
   'capacitor://localhost',
   'ionic://localhost'
 ];
