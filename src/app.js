@@ -1,6 +1,5 @@
 // app.js
 import express from 'express';
-import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -17,7 +16,11 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// === CORS ===
+// Middleware para JSON y formularios
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// === CORS seguro con preflight ===
 const allowedOrigins = [
   'http://localhost:8100',              // Ionic dev server
   'http://localhost',
@@ -27,22 +30,21 @@ const allowedOrigins = [
   'https://api2025-2-spae.onrender.com' // tu frontend en producción
 ];
 
-app.use(cors({
-  origin: function(origin, callback){
-    if(!origin) return callback(null, true); // permitir requests desde Postman, curl, etc.
-    if(allowedOrigins.indexOf(origin) === -1){
-      const msg = 'CORS no permitido para este origen';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization']
-}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  }
 
-// Middleware para JSON y formularios
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  // Responder OPTIONS rápido
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 // Carpeta de uploads
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
