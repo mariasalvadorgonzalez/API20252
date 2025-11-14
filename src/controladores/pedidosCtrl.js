@@ -1,6 +1,8 @@
 import { conmysql } from "../db.js";
 
-// === OBTENER TODOS LOS PEDIDOS CON INFO COMPLETA ===
+// =====================================================
+// === OBTENER TODOS LOS PEDIDOS CON INFO COMPLETA   ===
+// =====================================================
 export const getPedidos = async (req, res) => {
     try {
         const [result] = await conmysql.query(`
@@ -18,16 +20,22 @@ export const getPedidos = async (req, res) => {
             LEFT JOIN usuarios u ON p.usr_id = u.usr_id
             ORDER BY p.ped_fecha DESC
         `);
+
         res.json({
             cant: result.length,
             data: result
         });
+
     } catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Error en el servidor" });
     }
-}
+};
 
-// === BUSCAR PEDIDO POR ID CON DETALLES ===
+
+// =====================================================
+// === BUSCAR PEDIDO POR ID CON SUS DETALLES         ===
+// =====================================================
 export const getPedidoxId = async (req, res) => {
     try {
         const [pedido] = await conmysql.query(`
@@ -48,12 +56,13 @@ export const getPedidoxId = async (req, res) => {
             WHERE p.ped_id = ?
         `, [req.params.id]);
 
-        if (pedido.length <= 0) return res.json({
-            cant: 0,
-            message: "Pedido no encontrado"
-        });
+        if (pedido.length <= 0) {
+            return res.json({
+                cant: 0,
+                message: "Pedido no encontrado"
+            });
+        }
 
-        // Obtener detalles del pedido
         const [detalles] = await conmysql.query(`
             SELECT 
                 pd.det_id,
@@ -72,23 +81,27 @@ export const getPedidoxId = async (req, res) => {
             cant: 1,
             data: {
                 ...pedido[0],
-                detalles: detalles
+                detalles
             }
         });
+
     } catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Error en el servidor" });
     }
-}
+};
 
-// === INSERTAR PEDIDO CON DETALLES (POST) ===
+
+// =====================================================
+// === INSERTAR PEDIDO Y SUS DETALLES (POST)         ===
+// =====================================================
 export const postPedido = async (req, res) => {
     const connection = await conmysql.getConnection();
     try {
         await connection.beginTransaction();
 
         const { cli_id, usr_id, ped_estado, detalles } = req.body;
-        
-        // Insertar el pedido
+
         const [resultPedido] = await connection.query(
             'INSERT INTO pedidos (cli_id, ped_fecha, usr_id, ped_estado) VALUES (?, NOW(), ?, ?)',
             [cli_id, usr_id, ped_estado || 0]
@@ -96,35 +109,39 @@ export const postPedido = async (req, res) => {
 
         const ped_id = resultPedido.insertId;
 
-        // Insertar los detalles del pedido
         if (detalles && detalles.length > 0) {
-            for (const detalle of detalles) {
+            for (const d of detalles) {
                 await connection.query(
                     'INSERT INTO pedidos_detalle (prod_id, ped_id, det_cantidad, det_precio) VALUES (?, ?, ?, ?)',
-                    [detalle.prod_id, ped_id, detalle.det_cantidad, detalle.det_precio]
+                    [d.prod_id, ped_id, d.det_cantidad, d.det_precio]
                 );
             }
         }
 
         await connection.commit();
-        res.send({ ped_id: ped_id, message: "Pedido creado exitosamente" });
+        res.send({ ped_id, message: "Pedido creado exitosamente" });
+
     } catch (error) {
         await connection.rollback();
-        console.error('Error en postPedido:', error);
+        console.log(error);
         return res.status(500).json({ message: "Error en el servidor" });
+
     } finally {
         connection.release();
     }
-}
+};
 
-// === MODIFICAR ESTADO DE PEDIDO (PUT) ===
+
+// =====================================================
+// === MODIFICAR ESTADO DE UN PEDIDO (PUT)           ===
+// =====================================================
 export const putPedido = async (req, res) => {
     try {
         const { id } = req.params;
         const { ped_estado } = req.body;
-        
+
         const [result] = await conmysql.query(
-            'UPDATE pedidos SET ped_estado=? WHERE ped_id=?',
+            'UPDATE pedidos SET ped_estado = ? WHERE ped_id = ?',
             [ped_estado, id]
         );
 
@@ -132,26 +149,28 @@ export const putPedido = async (req, res) => {
             return res.status(404).json({ message: "Pedido no encontrado" });
         }
 
-        const [fila] = await conmysql.query('SELECT * FROM pedidos WHERE ped_id=?', [id]);
+        const [fila] = await conmysql.query('SELECT * FROM pedidos WHERE ped_id = ?', [id]);
         res.json(fila[0]);
+
     } catch (error) {
-        console.error('Error en putPedido:', error);
+        console.log(error);
         return res.status(500).json({ message: "Error en el servidor" });
     }
-}
+};
 
-// === ELIMINAR PEDIDO (DELETE) ===
+
+// =====================================================
+// === ELIMINAR PEDIDO Y SUS DETALLES (DELETE)       ===
+// =====================================================
 export const deletePedido = async (req, res) => {
     const connection = await conmysql.getConnection();
+
     try {
         await connection.beginTransaction();
-
         const { id } = req.params;
-        
-        // Primero eliminar los detalles
+
         await connection.query('DELETE FROM pedidos_detalle WHERE ped_id = ?', [id]);
-        
-        // Luego eliminar el pedido
+
         const [result] = await connection.query('DELETE FROM pedidos WHERE ped_id = ?', [id]);
 
         if (result.affectedRows <= 0) {
@@ -161,11 +180,50 @@ export const deletePedido = async (req, res) => {
 
         await connection.commit();
         res.json({ message: "Pedido eliminado correctamente" });
+
     } catch (error) {
         await connection.rollback();
-        console.error('Error en deletePedido:', error);
+        console.log(error);
         return res.status(500).json({ message: "Error en el servidor" });
+
     } finally {
         connection.release();
     }
-}
+};
+
+
+// =====================================================
+// === LISTAR PEDIDOS POR RANGO DE FECHAS            ===
+// =====================================================
+export const getPedidosPorFechas = async (req, res) => {
+    try {
+        const { inicio, fin } = req.query;
+
+        if (!inicio || !fin) {
+            return res.status(400).json({ message: "Debe enviar inicio y fin" });
+        }
+
+        const [result] = await conmysql.query(`
+            SELECT 
+                p.ped_id,
+                p.ped_fecha,
+                p.ped_estado,
+                c.cli_nombre,
+                u.usr_nombre
+            FROM pedidos p
+            LEFT JOIN clientes c ON p.cli_id = c.cli_id
+            LEFT JOIN usuarios u ON p.usr_id = u.usr_id
+            WHERE DATE(p.ped_fecha) BETWEEN ? AND ?
+            ORDER BY p.ped_fecha DESC
+        `, [inicio, fin]);
+
+        res.json({
+            cant: result.length,
+            data: result
+        });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: "Error en el servidor" });
+    }
+};

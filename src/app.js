@@ -1,33 +1,32 @@
-// app.js
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Importar rutas
+// Rutas
 import clientesRoutes from './routes/clientes.routes.js';
 import productosRoutes from './routes/productos.routes.js';
 import usuarioRoutes from './routes/usuarios.routes.js';
 import pedidosRoutes from './routes/pedidos.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import categoriasRoutes from './routes/categorias.routes.js';
 
 const app = express();
 
-// Configuración de __dirname en ESModules
+// __dirname para ESModules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Middleware para JSON y formularios
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// === CORS seguro con preflight ===
+// CORS
 const allowedOrigins = [
-  'http://localhost:8100',              // Ionic dev server
+  'http://localhost:8100',
   'http://localhost',
   'https://localhost',
   'capacitor://localhost',
   'ionic://localhost',
-  'https://api2025-2-spae.onrender.com' // tu frontend en producción
+  'https://api2025-2-spae.onrender.com'
 ];
 
 app.use((req, res, next) => {
@@ -38,7 +37,6 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   }
 
-  // Responder OPTIONS rápido
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -46,21 +44,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// Carpeta de uploads
+// Carpeta uploads
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// === RUTAS ===
+// Rutas
 app.use('/api', authRoutes);
 app.use('/api', clientesRoutes);
 app.use('/api', productosRoutes);
 app.use('/api', usuarioRoutes);
 app.use('/api', pedidosRoutes);
+app.use('/api', categoriasRoutes);
 
-// Manejo de endpoints no encontrados
-app.use((req, res, next) => {
-  res.status(404).json({
-    message: 'Endpoint not found'
-  });
+// 404
+app.use((req, res) => {
+  res.status(404).json({ message: 'Endpoint not found' });
 });
 
 export default app;
+

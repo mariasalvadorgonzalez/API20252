@@ -1,17 +1,28 @@
 import { Router } from "express"
 import { verifyToken } from "../middlewares/verifyToken.js";
-import upload from '../middlewares/upload.js';  // Ajusta la ruta según tu estructura de carpetas
+import upload from '../middlewares/upload.js';
 
-//importar las funciones
-import { prueba, getProductos,getProductosxId,postProducto,putProducto,deleteProducto } from "../controladores/productosCtrl.js";
+// Controladores
+import { 
+  getProductos,
+  getProductosxId,
+  postProducto,
+  putProducto,
+  deleteProducto
+} from "../controladores/productosCtrl.js";
+
 const router = Router();
-// === RUTAS ===
-//router.get('/productos', prueba);
+
 router.get("/productos", verifyToken, getProductos);
 router.get("/productos/:id", verifyToken, getProductosxId);
-//router.post("/productos", verifyToken, postProducto);
+
+// Registrar producto con imagen + cat_id
 router.post("/productos", verifyToken, upload.single("imagen"), postProducto);
-router.put('/productos/:id', verifyToken, upload.single('imagen'), putProducto);
-//router.put("/productos/:id", verifyToken, putProducto);
+
+// Actualizar producto
+router.put("/productos/:id", verifyToken, upload.single("imagen"), putProducto);
+
+// Eliminar producto
 router.delete("/productos/:id", verifyToken, deleteProducto);
+
 export default router;
